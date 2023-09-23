@@ -13,20 +13,22 @@ if (!fs.existsSync(CACHE_DIR)) {
 async function fetchUrl(url, outputFilePath) {
     try {
         const response = await fetch(url);
+        if (fs.existsSync(outputFilePath)) {return true;}
         const fileStream = fs.createWriteStream(outputFilePath);
         const stream = new WritableStream({
             write(chunk) {
                 fileStream.write(chunk);
             },
+            close(){
+                fileStream.close()
+            }
         });
 
-        response.body.pipeTo(stream);
+        console.log("get", outputFilePath)
+        await response.body.pipeTo(stream);
+        console.log("  got", outputFilePath)
 
         // Ensure the stream finishes writing before returning
-        await new Promise((resolve, reject) => {
-            fileStream.on('finish', resolve);
-            fileStream.on('error', reject);
-        });
     } catch (error) {
         console.error(`Failed to fetch ${url}: ${error.message}`);
     }
@@ -56,7 +58,7 @@ async function processFile(file) {
     try {
       jsonData = JSON.parse(content);
     } catch (e) {
-      console.error("Failed on", filePath, e);
+      console.error("Failed to parse index ", filePath, e);
       return;
     }
 
@@ -74,9 +76,19 @@ async function main() {
 
     // Process 10 files concurrently
     for (let i = 0; i < files.length; i += 10) {
-        const fileChunk = files.slice(i, i + 10);
-        await Promise.all(fileChunk.map(file => processFile(file)));
+        console.log("Begin chunk", i, files.length);
+        try {
+            const fileChunk = files.slice(i, i + 10);
+            console.log("Await c", i);
+            await Promise.all(fileChunk.map(file => processFile(file)));
+            console.log("done c", i);
+        } catch (e) {
+            console.log("Failed in chunk", i, files.length, e);
+        }
+        console.log("Completed chunk", i);
     }
 }
 
-main();
+await main().then(() => {console.log("Main done")});
+
+console.log("Done")
