@@ -1,11 +1,14 @@
 # CMS PUF --> Plan Network Files
 
-Dependencies: `libreoffice`, `csvkit`, `wget`, `unzip`, `jq`, `curl`, `node`, `findutils`
+Dependencies: `libreoffice`, `csvkit`, `unzip`, `jq`, `node`, `findutils`
 
-Build the cache:
+Build the cache (requires ~100GB disk space):
 
 ```sh
-./00-setup.sh
-./01-index.sh
-./02-cache.sh
+node cache.mjs
+```
+
+Create ndjson from cache (requires ~100GB disk space):
+```sh
+./convert_to_ndjson.sh
 ```

@@ -1,94 +1,122 @@
-import fs from 'fs';
-import path from 'path';
+import fs, { readFileSync } from "fs";
+import path from "path";
 
-const INDEX_DIR = 'index';
-const CACHE_DIR = 'cache';
-const MAX_CONCURRENT_URLS = 5;
+const CACHE_DIR = "cache";
+const MAX_CONCURRENT_URLS = 10;
 
-// Ensure the cache directory exists
 if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR);
+  fs.mkdirSync(CACHE_DIR);
 }
 
 async function fetchUrl(url, outputFilePath) {
-    try {
-        const response = await fetch(url);
-        if (fs.existsSync(outputFilePath)) {return true;}
-        const fileStream = fs.createWriteStream(outputFilePath);
-        const stream = new WritableStream({
-            write(chunk) {
-                fileStream.write(chunk);
-            },
-            close(){
-                fileStream.close()
-            }
-        });
+  try {
+    console.log("get", url, outputFilePath);
+    const response = await fetch(url);
+    const fileStream = fs.createWriteStream(outputFilePath);
+    const stream = new WritableStream({
+      write(chunk) {
+        return new Promise((resolve, reject) => fileStream.write(chunk, (err) => err ? reject(err) : resolve()));
+      },
+      close() {
+        return new Promise((resolve, reject) => fileStream.close((err) => err ? reject(err) : resolve()));
+      },
+    });
 
-        console.log("get", outputFilePath)
-        await response.body.pipeTo(stream);
-        console.log("  got", outputFilePath)
-
-        // Ensure the stream finishes writing before returning
-    } catch (error) {
-        console.error(`Failed to fetch ${url}: ${error.message}`);
+    if (response.headers.get("content-type").startsWith("text/html")){
+        console.error("Wrong content type", url, response.headers);
+        return false;
     }
+    let r = await response.body
+      .pipeThrough(
+        new TextDecoderStream("utf-8", { fatal: false, ignoreBOM: true })
+      )
+      .pipeTo(stream);
+    console.log("  got", outputFilePath, r, response.headers.get("content-type"));
+    return true;
+  } catch (error) {
+    console.error(`Failed to fetch ${url}: ${error.message}`, error);
+    return false;
+  }
 }
 
-async function processUrlsWithPool(urls, filename, key) {
-    let currentIndex = 0;
-
-    const worker = async () => {
-        while (currentIndex < urls.length) {
-            const index = currentIndex++;
-            const url = urls[index];
-            const cacheFileName = `${filename}_${key}_${index}.json`;
-            const cacheFilePath = path.join(CACHE_DIR, cacheFileName);
-            await fetchUrl(url, cacheFilePath);
-        }
-    };
-
-    const workers = Array.from({ length: MAX_CONCURRENT_URLS }).map(worker);
-    await Promise.all(workers);
+const cacheFile = path.join(CACHE_DIR, ".cache.json");
+let cache;
+try {
+  const cacheEntries = fs
+    .readFileSync(path.join(CACHE_DIR, ".cache.json"))
+    .toString()
+    .split("\n")
+    .filter((l) => l.startsWith("["))
+    .map((l) => JSON.parse(l));
+  cache = Object.fromEntries(cacheEntries);
+} catch (e) {
+  cache = {};
 }
 
-async function processFile(file) {
-    const filePath = path.join(INDEX_DIR, file);
-    const content = fs.readFileSync(filePath, 'utf-8');
-    let jsonData;
-    try {
-      jsonData = JSON.parse(content);
-    } catch (e) {
-      console.error("Failed to parse index ", filePath, e);
-      return;
-    }
+const cacheResult = (url, filename) => {
+  fs.appendFileSync(cacheFile, JSON.stringify([url, filename]) + `\n`);
+  cache[url] = filename;
+};
 
-    // Iterate through the properties of the JSON data
-    for (const [key, value] of Object.entries(jsonData)) {
-        // Check if property ends with "urls" and its value is an array
-        if (key.endsWith('urls') && Array.isArray(value)) {
-            await processUrlsWithPool(value, file, key);
-        }
+async function fetchUrls(targets) {
+  let currentIndex = 0;
+
+  const worker = async (i) => {
+    while (currentIndex < targets.length) {
+      const index = currentIndex++;
+      const url = targets[index].url;
+      if (cache[url]) {
+        continue;
+      }
+
+      const tag = targets[index].tag;
+      const cacheFileName = `${tag}_${url
+        .replace(/[^a-z0-9]/gi, "")
+        .toLowerCase()}.json`;
+      const cacheFilePath = path.join(CACHE_DIR, cacheFileName);
+      if (await fetchUrl(url, cacheFilePath)) {
+        cacheResult(url, cacheFileName);
+      }
     }
+  };
+
+  const workers = Array.from({ length: MAX_CONCURRENT_URLS }).map((_, i) =>
+    worker(i)
+  );
+  await Promise.all(workers);
+}
+
+function processFile(file) {
+  const filePath = path.join(CACHE_DIR, file);
+  const content = fs.readFileSync(filePath, "utf-8");
+  let jsonData;
+  try {
+    jsonData = JSON.parse(content);
+  } catch (e) {
+    console.error("Failed to parse file ", filePath, e);
+    return [];
+  }
+
+  return Object.entries(jsonData)
+    .filter(([key, value]) => key.endsWith("urls") && Array.isArray(value))
+    .flatMap(([key, value]) =>
+      value.map((url) => ({ url, tag: key.slice(0, -5) }))
+    );
 }
 
 async function main() {
-    const files = fs.readdirSync(INDEX_DIR);
+  console.log("Cache", Object.values(cache).length);
+  const repo = JSON.parse(fs.readFileSync("Machine_Readable_PUF.json"));
+  const indexes = new Set(repo.map((i) => i["URL Submitted"]));
 
-    // Process 10 files concurrently
-    for (let i = 0; i < files.length; i += 10) {
-        console.log("Begin chunk", i, files.length);
-        try {
-            const fileChunk = files.slice(i, i + 10);
-            console.log("Await c", i);
-            await Promise.all(fileChunk.map(file => processFile(file)));
-            console.log("done c", i);
-        } catch (e) {
-            console.log("Failed in chunk", i, files.length, e);
-        }
-        console.log("Completed chunk", i);
-    }
+  await fetchUrls(Array.from(indexes).map((url) => ({ url, tag: "index" })));
+
+  const subFiles = Object.values(cache)
+    .filter((f) => f.startsWith("index_"))
+    .flatMap(processFile);
+
+  await fetchUrls(subFiles);
+  return;
 }
 
-await main().then(() => {console.log("Main done")});
-
-console.log("Done")
+await main();
