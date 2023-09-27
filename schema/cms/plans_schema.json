@@ -1,0 +1,77 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "array", "items": {"$ref": "#/definitions/plan"}, "minItems": 1,
+    "definitions": {
+        "plan": {
+            "type": "object",
+            "properties": {
+                "plan_id_type": {"type": "string", "enum": ["HIOS-PLAN-ID"]},
+                "plan_id": {"type": "string", "pattern": "^[0-9]{5}[A-Z]{2}[0-9]{7}$"},
+                "marketing_name": {"type": "string"},
+                "summary_url": {"type": "string", "format": "uri"},
+                "marketing_url": {"type": "string", "format": "uri"},
+                "formulary_url": {"type": "string", "format": "uri"},
+                "plan_contact": {"type": "string", "format": "email"},
+                "network": {"type": "array", "items": {"$ref": "#/definitions/network"}},
+                "formulary": {"$ref": "#/definitions/formulary"},
+                "benefits": {"type": "array", "items": {"$ref": "#/definitions/benefit"}},
+                "last_updated_on": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+                "years": {"type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "required": ["plan_id_type", "plan_id", "marketing_name", "summary_url", "plan_contact", "network", "formulary", "last_updated_on"]
+        },
+        "network": {
+            "type": "object",
+            "properties": {
+                "network_tier": {"type": "string", "pattern": "^[A-Z-]+$"}
+            },
+            "required": ["network_tier"]
+        },
+        "formulary_tier": {
+          "type": "object",
+          "properties": {
+              "drug_tier": {"type": "string", "pattern": "^[A-Z1-9-]+$"},
+              "mail_order": {"type": "boolean"},
+              "cost_sharing": {"type": "array", "items": {"$ref": "#/definitions/cost_sharing"}}
+          },
+          "required": ["drug_tier", "mail_order"]
+        },
+        "formulary": {
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {"$ref": "#/definitions/formulary_tier"}
+              },
+              {
+                "$ref": "#/definitions/formulary_tier"
+              }
+            ]
+        },
+        "cost_sharing": {
+            "type": "object",
+            "properties": {
+                "pharmacy_type": {"type": "string"},
+                "copay_amount": {"type": "number"},
+                "copay_opt": {"$ref": "#/definitions/cost_sharing_opts"},
+                "coinsurance_rate": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "coinsurance_opt": {"$ref": "#/definitions/cost_sharing_opts"}
+            },
+            "required": ["pharmacy_type", "copay_amount", "coinsurance_rate", "copay_opt", "coinsurance_opt"]
+        },
+        "benefit": {
+            "type": "object",
+            "properties": {
+                "telemedicine": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "cost_sharing_opts": {
+            "enum": ["AFTER-DEDUCTIBLE", "BEFORE-DEDUCTIBLE", "NO-CHARGE", "NO-CHARGE-AFTER-DEDUCTIBLE", null]
+        }
+    }
+}

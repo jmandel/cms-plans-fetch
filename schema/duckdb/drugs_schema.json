@@ -1,0 +1,1 @@
+{"rxnorm_id": "VARCHAR", "drug_name": "VARCHAR", "plans": "STRUCT(plan_id_type VARCHAR, plan_id VARCHAR, drug_tier VARCHAR, prior_authorization BOOLEAN, step_therapy BOOLEAN, quantity_limit BOOLEAN, years BIGINT[])[]"}

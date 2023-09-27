@@ -1,0 +1,1 @@
+{"plan_id_type": "VARCHAR", "plan_id": "VARCHAR", "marketing_name": "VARCHAR", "summary_url": "VARCHAR", "marketing_url": "VARCHAR", "formulary_url": "VARCHAR", "plan_contact": "VARCHAR", "network": "STRUCT(network_tier VARCHAR)[]", "formulary": "UNKNOWN", "benefits": "STRUCT(telemedicine BOOLEAN)[]", "last_updated_on": "VARCHAR", "years": "BIGINT[]"}
