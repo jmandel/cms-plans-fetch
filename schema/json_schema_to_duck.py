@@ -117,10 +117,9 @@ def toduck(s):
     return "{" + ", ".join(f'"{k}": "{v}"' for (k,v) in parts.items()) + "}"
 
 
-schema_file_path = 'schema/cms/'
 for schema in ["drugs_schema.json",  "plans_schema.json",  "providers_schema.json"]:
 
-    with open(schema_file_path+schema, 'r') as f:
+    with open('cms/'+schema, 'r') as f:
         json_schema = json.load(f)
 
     # Starting with the root of the schema, which is often defined under "definitions"
@@ -130,7 +129,5 @@ for schema in ["drugs_schema.json",  "plans_schema.json",  "providers_schema.jso
 
     # Generate the DuckDB schema
     duckdb_schema = generate_duckdb_schema(root_schema, definitions)
-    with open("schema/duckdb/"+schema, "w") as fout:
-        print("DS", schema, duckdb_schema)
-        print("asDS",toduck(duckdb_schema))
+    with open("duckdb/"+schema, "w") as fout:
         print(toduck(duckdb_schema), file=fout)

@@ -41,15 +41,8 @@
           "required": ["drug_tier", "mail_order"]
         },
         "formulary": {
-            "oneOf": [
-              {
                 "type": "array",
                 "items": {"$ref": "#/definitions/formulary_tier"}
-              },
-              {
-                "$ref": "#/definitions/formulary_tier"
-              }
-            ]
         },
         "cost_sharing": {
             "type": "object",
@@ -71,6 +64,7 @@
             }
         },
         "cost_sharing_opts": {
+            "type": "string",
             "enum": ["AFTER-DEDUCTIBLE", "BEFORE-DEDUCTIBLE", "NO-CHARGE", "NO-CHARGE-AFTER-DEDUCTIBLE", null]
         }
     }
