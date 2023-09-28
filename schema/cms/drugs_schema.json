@@ -20,7 +20,8 @@
                 "prior_authorization": {"type": "boolean"},
                 "step_therapy": {"type": "boolean"},
                 "quantity_limit": {"type": "boolean"},
-                "years": {"type": "array",
+                "years": {
+                  "type": "array",
                     "items": {
                         "type": "integer"
                     }

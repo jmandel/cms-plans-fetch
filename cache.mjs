@@ -84,16 +84,17 @@ class JsonTransformStream {
 }
 
 async function fetchUrl(url, outputFilePath, ndjson = false) {
-  try {
     console.log("get", url, outputFilePath);
-    const response = await fetch(url);
     const gzStream = createGzip()
+    const fstream = fs.createWriteStream(outputFilePath)
+    gzStream.pipe(fstream)
     const wstream = stream.Writable.toWeb(gzStream);
-    gzStream.pipe(fs.createWriteStream(outputFilePath))
+
+  try {
+    const response = await fetch(url);
 
     if (response.headers.get("content-type").startsWith("text/html")) {
-      console.error("Wrong content type", url, response.headers);
-      return false;
+      throw new Error(`Wrong content type: url ${url}, header ${response.headers.get("content-type")}`)
     }
 
     let r = await response.body.pipeThrough(
@@ -107,6 +108,9 @@ async function fetchUrl(url, outputFilePath, ndjson = false) {
           if (chunk.formulary && !Array.isArray(chunk.formulary)) {
             chunk.formulary = [chunk.formulary];
           }
+          if (chunk?.plans?.[0]?.years && !Array.isArray(chunk?.plans?.[0]?.years)) {
+            chunk.plans.forEach(p => p.years = [p.years])
+          }
           controller.enqueue(JSON.stringify(chunk) + "\n");
         },
       });
@@ -114,12 +118,16 @@ async function fetchUrl(url, outputFilePath, ndjson = false) {
       r = r.pipeThrough(jsonStream).pipeThrough(ndjsonStream);
     }
     r = r.pipeTo(wstream);
-
     await r;
     console.log("  got", outputFilePath, response.headers.get("content-type"));
     return true;
   } catch (error) {
-    console.error(`Failed to fetch ${url}: ${error.message}`, error);
+    console.error(`Failed to fetch ${url}: ${error.message}`);
+    if (fs.existsSync(outputFilePath)) {
+      fstream.destroy()
+      fs.rmSync(outputFilePath);
+      // console.log("Removed", outputFilePath, gzStream, fstream, wstream)
+    }
     return false;
   }
 }

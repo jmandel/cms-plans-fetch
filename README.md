@@ -2,7 +2,7 @@
 
 Dependencies: `libreoffice`, `csvkit`, `unzip`, `node`
 
-Build a cache of all content (requires ~10GB disk space):
+Build a cache of all content (requires ~3GB disk space):
 
 ```sh
 node cache.mjs
@@ -21,3 +21,4 @@ create table plan as (SELECT * from read_ndjson("cache/plan_*",  columns={"plan_
 
 create table formulary as (SELECT * from read_ndjson("cache/formulary_*",  columns={"rxnorm_id": "VARCHAR", "drug_name": "VARCHAR", "plans": "STRUCT(plan_id_type VARCHAR, plan_id VARCHAR, drug_tier VARCHAR, prior_authorization BOOLEAN, step_therapy BOOLEAN, quantity_limit BOOLEAN, years BIGINT[])[]"}))
 ```
+
